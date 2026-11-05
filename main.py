@@ -308,9 +308,16 @@ def main():
     print(f"Memory: {memory.status}")
     deep = DeepThinker(bus, memory)
     brain = Brain(deep=deep, memory=memory, on_tool=bus.action)
-    try:
-        brain.setup()
-    except ConnectionError:
+    # Right after logging in to Windows, Ollama may still be starting: give it up to a minute.
+    for attempt in range(13):
+        try:
+            brain.setup()
+            break
+        except ConnectionError:
+            if attempt == 0:
+                print("Waiting for Ollama to start...")
+            time.sleep(5)
+    else:
         sys.exit(
             "Can't reach Ollama, which runs Jarvis's AI brain.\n"
             "Start the Ollama app from the Start menu (or install it from https://ollama.com), then try again."

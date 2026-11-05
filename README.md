@@ -70,6 +70,10 @@ The first time, Chrome may ask to let the site reach apps on this device: choose
 - **"Remember that my exam is on Friday"** saves a memory. **"What do you remember about my exam?"** recalls it.
 - Say **"Goodbye"**, or press Ctrl+C in the Jarvis window, to quit.
 
+**Starts with Windows:** a shortcut in your Startup folder launches Jarvis (minimized) every time
+you log in, and opens the website. To stop that, press Win+R, type `shell:startup`, and delete
+`Jarvis.lnk`. Closing the Jarvis window turns it off until the next login.
+
 Type instead of talking: `.venv\Scripts\python.exe main.py --text`.
 If GitHub Pages is unavailable, the same site works at http://localhost:8765 while Jarvis runs.
 

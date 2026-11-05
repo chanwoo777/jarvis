@@ -35,29 +35,44 @@ class Memory:
         self.status = "session only" if not repo else "not loaded"
         self._sha: str | None = None
         self._token = ""
+        self._loaded = False  # never save before reading what's already on GitHub, or it would be overwritten
         self._lock = threading.Lock()
         self._dirty = threading.Event()
 
-    def load(self):
+    def load(self, attempts: int = 6):
         if not self.repo:
             return
+        for attempt in range(attempts):  # right after login the network may not be up yet
+            if self._fetch():
+                break
+            if attempt < attempts - 1:
+                time.sleep(5)
+        threading.Thread(target=self._saver, daemon=True).start()
+        self.on_change(self.items)
+
+    def _fetch(self) -> bool:
+        """Read memory.json from GitHub. True once the saved memories are known."""
         try:
             self._token = subprocess.run(
                 ["gh", "auth", "token"], capture_output=True, text=True, timeout=20
             ).stdout.strip()
             data = self._api("GET", f"/repos/{self.repo}/contents/{FILE}")
-            self._sha = data["sha"]
-            self.items = json.loads(base64.b64decode(data["content"]).decode("utf-8"))
+            with self._lock:
+                saved = json.loads(base64.b64decode(data["content"]).decode("utf-8"))
+                known = {i["id"] for i in saved}
+                self.items = saved + [i for i in self.items if i["id"] not in known]
+                self._sha = data["sha"]
             self.status = f"{len(self.items)} memories in github.com/{self.repo}"
         except HTTPError as e:
-            if e.code == 404:  # repo exists but no memories saved yet
-                self.status = f"empty, saving to github.com/{self.repo}"
-            else:
-                self.status = f"GitHub error {e.code}; remembering only until Jarvis closes"
+            if e.code != 404:
+                self.status = f"GitHub error {e.code}; will keep trying"
+                return False
+            self.status = f"empty, saving to github.com/{self.repo}"  # no memories saved yet
         except (URLError, OSError, ValueError) as e:
-            self.status = f"offline ({e}); remembering only until Jarvis closes"
-        threading.Thread(target=self._saver, daemon=True).start()
-        self.on_change(self.items)
+            self.status = f"offline ({e}); will keep trying"
+            return False
+        self._loaded = True
+        return True
 
     # ----- reading and writing -----
 
@@ -100,9 +115,11 @@ class Memory:
             self._dirty.wait()
             time.sleep(2)  # bundle quick changes into one save
             self._dirty.clear()
-            if not self.repo or not self._token:
+            if not self.repo:
                 continue
             try:
+                if not self._loaded and not self._fetch():
+                    raise ConnectionError(self.status)
                 self._save()
             except Exception as e:
                 print(f"(memory: couldn't save to GitHub: {e}; will retry)")
