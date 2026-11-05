@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>J.A.R.V.I.S.</title>
+  <meta name="description" content="Live view of Jarvis, a personal voice assistant running on its owner's PC.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='26' fill='none' stroke='%234fd1ff' stroke-width='6'/%3E%3Ccircle cx='32' cy='32' r='10' fill='%234fd1ff'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">J.A.R.V.I.S.</div>
+    <div class="chips">
+      <span class="chip" id="chip-model" hidden></span>
+      <span class="chip" id="chip-memory" hidden></span>
+      <span class="chip status" id="status"><span class="dot"></span><span id="status-text">Connecting…</span></span>
+    </div>
+  </header>
+
+  <main class="grid">
+    <section class="panel convo" aria-label="Conversation">
+      <h2>Conversation</h2>
+      <ol class="feed" id="messages"></ol>
+      <form class="composer" id="composer" autocomplete="off">
+        <button type="button" class="mic" id="mic" title="Talk to Jarvis" aria-label="Talk to Jarvis">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-2.08A7 7 0 0 0 19 12h-2Z"/></svg>
+        </button>
+        <input id="input" type="text" placeholder="Type to Jarvis…" aria-label="Message to Jarvis">
+        <button type="submit" class="send">Send</button>
+      </form>
+    </section>
+
+    <section class="core" aria-label="Jarvis">
+      <canvas id="orb" width="440" height="440"></canvas>
+      <div class="state" id="state">Standing by</div>
+      <div class="panel actions-panel">
+        <h2>Actions</h2>
+        <ol class="actions" id="actions"><li class="empty">Things Jarvis does on your PC appear here.</li></ol>
+      </div>
+    </section>
+
+    <section class="side">
+      <div class="panel">
+        <h2>Deep thinking</h2>
+        <ol class="tasks" id="tasks"><li class="empty">Ask something detailed (“think about…”) and Jarvis works on it here while you keep talking.</li></ol>
+      </div>
+      <div class="panel">
+        <h2>Memory <span class="sub">private GitHub repo</span></h2>
+        <ol class="memory" id="memory"><li class="empty">Nothing remembered yet. Try “Remember that…”.</li></ol>
+      </div>
+    </section>
+  </main>
+
+  <div class="overlay" id="pairing" hidden>
+    <div class="card">
+      <h2 id="pair-title">Connect to Jarvis</h2>
+      <p id="pair-text">Start Jarvis on your laptop. It opens this page with a pairing code automatically. Or type the code shown in the Jarvis window:</p>
+      <form id="pair-form" class="pair-form" autocomplete="off">
+        <input id="pair-code" type="text" placeholder="Pairing code" aria-label="Pairing code">
+        <button type="submit" class="send">Connect</button>
+      </form>
+      <p class="fine">This page only talks to Jarvis on your own computer (127.0.0.1). Chrome may ask to let it reach apps on this device: choose Allow.</p>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
