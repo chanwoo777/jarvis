@@ -8,6 +8,7 @@
 
 import argparse
 import re
+import socket
 import sys
 import threading
 import time
@@ -62,6 +63,12 @@ def think(brain: Brain, text: str) -> str:
     except ollama.ResponseError as e:
         print(f"(Ollama error: {e.error})")
         return "Something went wrong while I was thinking."
+
+
+def already_running() -> bool:
+    with socket.socket() as s:
+        s.settimeout(0.5)
+        return s.connect_ex(("127.0.0.1", config.PORT)) == 0
 
 
 def greeting() -> str:
@@ -300,6 +307,11 @@ def main():
             run_mic_test(Voice(config.VOICE, muted=args.mute))
         except KeyboardInterrupt:
             print("\nMic test finished.")
+        return
+
+    if already_running():
+        # E.g. started at login, then the website asked to start it again.
+        print("Jarvis is already running.")
         return
 
     bus = Bus()

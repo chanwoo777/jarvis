@@ -70,6 +70,19 @@ The first time, Chrome may ask to let the site reach apps on this device: choose
 - **"Remember that my exam is on Friday"** saves a memory. **"What do you remember about my exam?"** recalls it.
 - Say **"Goodbye"**, or press Ctrl+C in the Jarvis window, to quit.
 
+**Starts from the website:** after a one-time setup, opening https://chanwoo777.github.io/jarvis/
+starts Jarvis if it isn't running. Set it up by running this once in the jarvis folder:
+
+```
+powershell -ExecutionPolicy Bypass -File setup_website_launch.ps1
+```
+
+It registers `jarvis://` links for your Windows user, and they can only start Jarvis, nothing else.
+The first time, Chrome asks "Open Jarvis?": tick **Always allow** and click Open. Jarvis then opens
+a tab with the pairing code, and the page you opened connects too. The page starts Jarvis
+automatically once per visit, never after you closed Jarvis yourself; there's also a
+**Start Jarvis** button. Undo with `setup_website_launch.ps1 -Remove`.
+
 **Starts with Windows:** a shortcut in your Startup folder launches Jarvis (minimized) every time
 you log in, and opens the website. To stop that, press Win+R, type `shell:startup`, and delete
 `Jarvis.lnk`. Closing the Jarvis window turns it off until the next login.

@@ -55,6 +55,7 @@ body::before { /* faint HUD grid */
 }
 .banner[hidden] { display: none; }
 .banner a { text-decoration: none; white-space: nowrap; }
+.banner-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .grid {
   display: grid; grid-template-columns: minmax(280px, 1fr) minmax(320px, 440px) minmax(280px, 1fr);
   gap: 20px; padding: 20px 24px; height: calc(100vh - 62px); position: relative;

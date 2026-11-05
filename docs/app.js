@@ -28,6 +28,8 @@ const els = {
 
 let ws = null;
 let retryTimer = null;
+let everConnected = false;
+let launchTried = false;
 let state = "idle";
 let level = 0;
 let tasks = new Map();
@@ -108,10 +110,22 @@ function connect() {
   ws.onclose = () => retry();
 }
 
+// Starts Jarvis on this PC through the jarvis:// link (set up once with setup_website_launch.ps1).
+// Chrome asks the first time; tick "Always allow" so it happens automatically after that.
+function startJarvis() {
+  launchTried = true;
+  failures = 0;
+  setStatus("", "Starting Jarvis…");
+  location.href = "jarvis://start";
+}
+
 function retry() {
   ws = null;
   failures += 1;
-  setStatus("offline", failures > 2 ? "Jarvis is not running. Start run_jarvis.bat" : "Reconnecting…");
+  // Opening the site while Jarvis is off starts it, once per visit. Never after Jarvis was
+  // connected, so closing Jarvis on purpose doesn't make the page start it again.
+  if (!LOCAL && !everConnected && !launchTried) startJarvis();
+  setStatus("offline", failures > 2 ? (launchTried ? "Jarvis is starting… (or press Start Jarvis)" : "Jarvis is not running") : "Reconnecting…");
   if (!LOCAL && failures >= 2) {
     // The browser may be blocking this public page from reaching the PC: offer Jarvis's own copy of the page.
     $("local-link").href = `http://localhost:8765/${pairCode ? "#pair=" + encodeURIComponent(pairCode) : ""}`;
@@ -142,6 +156,7 @@ function handle(ev) {
       break;
     case "snapshot":
       failures = 0;
+      everConnected = true;
       els.pairing.hidden = true;
       $("blocked").hidden = true;
       setStatus("online", "Connected");
@@ -282,6 +297,7 @@ els.composer.addEventListener("submit", (e) => {
   els.input.value = "";
 });
 els.mic.addEventListener("click", () => send({ type: "listen" }));
+$("start-jarvis").addEventListener("click", startJarvis);
 
 // ---------- the orb ----------
 

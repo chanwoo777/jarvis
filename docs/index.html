@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=4">
+  <link rel="stylesheet" href="style.css?v=5">
 </head>
 <body>
   <header class="topbar">
@@ -22,10 +22,13 @@
   </header>
 
   <div class="banner" id="blocked" hidden>
-    <span>Can't reach Jarvis. <b>1.</b> Make sure Jarvis is running on this PC: double-click <b>run_jarvis.bat</b> and keep its window open.
-      <b>2.</b> If it's running and this still fails, allow this site to <b>access other apps and services on this device</b>
-      (padlock icon › Site settings), or use:</span>
-    <a class="send" id="local-link" href="http://localhost:8765/">Open Jarvis's local page</a>
+    <span>Can't reach Jarvis. <b>1.</b> Start it: press <b>Start Jarvis</b> (if Chrome asks to open Jarvis, tick <i>Always allow</i>),
+      or double-click <b>run_jarvis.bat</b>. <b>2.</b> If it's running and this still fails, allow this site to
+      <b>access other apps and services on this device</b> (padlock icon › Site settings), or use the local page.</span>
+    <span class="banner-actions">
+      <button type="button" class="send" id="start-jarvis">Start Jarvis</button>
+      <a class="send" id="local-link" href="http://localhost:8765/">Open Jarvis's local page</a>
+    </span>
   </div>
 
   <main class="grid">
@@ -74,6 +77,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=4"></script>
+  <script src="app.js?v=5"></script>
 </body>
 </html>
