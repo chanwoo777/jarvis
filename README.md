@@ -93,6 +93,7 @@ loud the mic hears you and how sure it is you said "Hey Jarvis" (it must reach 0
 | Problem | Fix |
 |---|---|
 | Website says "Jarvis is offline" | Start Jarvis on your laptop. The site only works while Jarvis runs |
+| Website shows "Reconnecting…" after being in the background | Normal: Chrome pauses background tabs to save power. It reconnects by itself (heartbeat every 15 s) and instantly when you return to the tab. For extra safety: Chrome Settings › Performance › "Always keep these sites active" › add `chanwoo777.github.io` |
 | Website says "Pairing code expired" | Jarvis was restarted. Use the tab it just opened, or type the code from the Jarvis window |
 | Website can't connect at all | Allow "access other apps on this device" in Chrome (padlock icon > Site settings), or use http://localhost:8765 |
 | "Can't reach Ollama" | Open "Ollama" from the Start menu, wait a few seconds, try again |
