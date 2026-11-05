@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=3">
+  <link rel="stylesheet" href="style.css?v=4">
 </head>
 <body>
   <header class="topbar">
@@ -22,8 +22,9 @@
   </header>
 
   <div class="banner" id="blocked" hidden>
-    <span>Can't reach Jarvis on this PC. If Chrome asks to let this site <b>access other apps and services on this device</b>, choose Allow
-      (or padlock icon › Site settings › Local network access › Allow). Otherwise:</span>
+    <span>Can't reach Jarvis. <b>1.</b> Make sure Jarvis is running on this PC: double-click <b>run_jarvis.bat</b> and keep its window open.
+      <b>2.</b> If it's running and this still fails, allow this site to <b>access other apps and services on this device</b>
+      (padlock icon › Site settings), or use:</span>
     <a class="send" id="local-link" href="http://localhost:8765/">Open Jarvis's local page</a>
   </div>
 
@@ -73,6 +74,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=3"></script>
+  <script src="app.js?v=4"></script>
 </body>
 </html>
