@@ -48,6 +48,13 @@ body::before { /* faint HUD grid */
 .status.offline { color: var(--red); border-color: rgba(255, 107, 122, 0.4); }
 .status.offline .dot { background: var(--red); }
 
+.banner {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  margin: 12px 24px 0; padding: 10px 14px; border: 1px solid var(--amber); border-radius: 10px;
+  background: var(--amber-soft); color: var(--text); font-size: 13.5px; position: relative;
+}
+.banner[hidden] { display: none; }
+.banner a { text-decoration: none; white-space: nowrap; }
 .grid {
   display: grid; grid-template-columns: minmax(280px, 1fr) minmax(320px, 440px) minmax(280px, 1fr);
   gap: 20px; padding: 20px 24px; height: calc(100vh - 62px); position: relative;

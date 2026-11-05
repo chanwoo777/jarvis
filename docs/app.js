@@ -112,6 +112,11 @@ function retry() {
   ws = null;
   failures += 1;
   setStatus("offline", failures > 2 ? "Jarvis is offline. Start it on your laptop" : "Reconnecting…");
+  if (!LOCAL && failures >= 2) {
+    // The browser may be blocking this public page from reaching the PC: offer Jarvis's own copy of the page.
+    $("local-link").href = `http://localhost:8765/${pairCode ? "#pair=" + encodeURIComponent(pairCode) : ""}`;
+    $("blocked").hidden = false;
+  }
   setState("idle");
   clearTimeout(retryTimer);
   retryTimer = setTimeout(connect, Math.min(10000, 1500 * failures));
@@ -138,6 +143,7 @@ function handle(ev) {
     case "snapshot":
       failures = 0;
       els.pairing.hidden = true;
+      $("blocked").hidden = true;
       setStatus("online", "Connected");
       showInfo(ev.info);
       setState(ev.state);
