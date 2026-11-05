@@ -36,6 +36,7 @@ let state = "idle";
 let level = 0;
 let tasks = new Map();
 let failures = 0;
+let lastHeard = 0; // when anything last arrived from Jarvis (it sends a tick every 15 s)
 
 // ---------- pairing code (kept in this browser only) ----------
 
@@ -110,9 +111,42 @@ function connect() {
     return retry();
   }
   ws.onopen = () => ws.send(JSON.stringify({ type: "auth", token: pairCode }));
-  ws.onmessage = (e) => handle(JSON.parse(e.data));
+  ws.onmessage = (e) => { lastHeard = Date.now(); handle(JSON.parse(e.data)); };
   ws.onclose = () => retry();
 }
+
+// ---------- staying connected while the tab is in the background ----------
+// Chrome slows down, freezes or unloads tabs that have been hidden for a few minutes. So:
+// tell Jarvis when this tab is hidden (it then stops sending the 12-a-second mic levels, and the
+// tab looks idle to Chrome), and reconnect the moment the tab is back.
+
+function sendView() {
+  send({ type: "view", visible: document.visibilityState === "visible" });
+}
+
+function reconnectNow() {
+  if (ws && ws.readyState === WebSocket.OPEN) return sendView();
+  if (ws && ws.readyState === WebSocket.CONNECTING) return;
+  failures = 0;
+  connect();
+}
+
+document.addEventListener("visibilitychange", () => {
+  sendView();
+  if (document.visibilityState === "visible") reconnectNow();
+});
+document.addEventListener("resume", reconnectNow); // Chrome unfroze the tab
+addEventListener("pageshow", reconnectNow); // restored from the back/forward cache
+addEventListener("focus", reconnectNow);
+addEventListener("online", reconnectNow);
+
+// A connection can die without the browser noticing. Jarvis sends something at least every
+// 15 seconds, so 40 seconds of silence on a visible page means: drop it and reconnect.
+setInterval(() => {
+  if (document.visibilityState === "visible" && ws && ws.readyState === WebSocket.OPEN && Date.now() - lastHeard > 40000) {
+    ws.close();
+  }
+}, 5000);
 
 // Asks the Jarvis launcher (started with Windows, port 8766) to start Jarvis if it isn't running.
 // It answers with that run's pairing code. Resolves to null if the launcher isn't reachable.
@@ -155,7 +189,9 @@ function retry() {
   // connected, so closing Jarvis on purpose doesn't make the page start it again.
   if (!everConnected && !launchTried) return startJarvis();
   const starting = launcherReply && launcherReply.type === "starting" && failures < 25;
-  setStatus("offline", starting ? "Starting Jarvis…" : failures > 2 ? "Jarvis is not running" : "Reconnecting…");
+  // After being connected, a drop is usually Chrome pausing a background tab: say "Reconnecting".
+  const giveUpAfter = everConnected ? 6 : 2;
+  setStatus("offline", starting ? "Starting Jarvis…" : failures > giveUpAfter ? "Jarvis is not running" : "Reconnecting…");
   if (!LOCAL && failures >= 2 && !starting) {
     // The browser may be blocking this public page from reaching the PC: offer Jarvis's own copy of the page.
     $("local-link").href = `http://localhost:8765/${pairCode ? "#pair=" + encodeURIComponent(pairCode) : ""}`;
@@ -163,7 +199,7 @@ function retry() {
   }
   setState("idle");
   clearTimeout(retryTimer);
-  retryTimer = setTimeout(connect, starting ? 1500 : Math.min(10000, 1500 * failures));
+  retryTimer = setTimeout(connect, starting ? 1500 : everConnected ? Math.min(5000, 1000 * failures) : Math.min(10000, 1500 * failures));
 }
 
 function send(msg) {
@@ -191,6 +227,7 @@ function handle(ev) {
       els.pairing.hidden = true;
       $("blocked").hidden = true;
       setStatus("online", "Connected");
+      sendView(); // so Jarvis knows straight away if this tab is in the background
       showInfo(ev.info);
       setState(ev.state);
       els.messages.replaceChildren();

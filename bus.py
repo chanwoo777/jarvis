@@ -29,6 +29,10 @@ import config
 WEB_DIR = (config.ROOT / "docs").resolve()
 ALLOWED_ORIGINS = [config.WEBSITE_ORIGIN, re.compile(r"http://(localhost|127\.0\.0\.1)(:\d+)?"), None]
 COMMANDS = {"say", "listen", "decide"}
+# A small "tick" this often lets the page notice a dead connection and reconnect by itself.
+HEARTBEAT_SECONDS = 15
+# A page this far behind (e.g. frozen by Chrome) is disconnected; it resyncs when it comes back.
+MAX_BACKLOG = 500
 
 
 class Bus:
@@ -41,7 +45,10 @@ class Bus:
         self.history: deque[dict] = deque(maxlen=60)  # recent messages and actions, for newly opened pages
         self.tasks: dict[str, dict] = {}
         self.memory: list[dict] = []
-        self._clients: set[asyncio.Queue] = set()
+        # Each open page's outbox, and whether that page is visible. Hidden pages get no mic-level
+        # updates: a background tab receiving 12 messages a second looks busy to Chrome, which then
+        # freezes or unloads it after a few minutes and drops the connection.
+        self._clients: dict[asyncio.Queue, dict] = {}
         self._loop: asyncio.AbstractEventLoop | None = None
         self._lock = threading.Lock()
         self._last_level = 0.0
@@ -58,7 +65,9 @@ class Bus:
         self._loop = asyncio.get_running_loop()
         async with serve(self._handle, "127.0.0.1", config.PORT, origins=ALLOWED_ORIGINS, process_request=self._http):
             ready.set()
-            await asyncio.Future()
+            while True:
+                await asyncio.sleep(HEARTBEAT_SECONDS)
+                self._send({"type": "tick"})
 
     def _http(self, connection, request):
         """Serve the website's files for anything that isn't the WebSocket."""
@@ -85,30 +94,42 @@ class Bus:
             return
 
         outbox: asyncio.Queue = asyncio.Queue()
+        client = {"visible": True}
         with self._lock:
-            self._clients.add(outbox)
+            self._clients[outbox] = client
             snapshot = self._snapshot()
         await ws.send(json.dumps(snapshot))
 
         async def pump():
             while True:
+                if outbox.qsize() > MAX_BACKLOG:
+                    await ws.close(1013, "page fell behind; reconnect to resync")
+                    return
                 await ws.send(await outbox.get())
 
         sender = asyncio.create_task(pump())
+        connected_at = time.time()
+        print(f"[{time.strftime('%H:%M:%S')}] Website connected")
         try:
             async for raw in ws:
                 try:
                     msg = json.loads(raw)
                 except ValueError:
                     continue
-                if msg.get("type") in COMMANDS:
+                if msg.get("type") == "view":
+                    client["visible"] = bool(msg.get("visible"))
+                elif msg.get("type") in COMMANDS:
                     self.inbox.put(msg)
         except Exception:
             pass
         finally:
             sender.cancel()
             with self._lock:
-                self._clients.discard(outbox)
+                self._clients.pop(outbox, None)
+            print(
+                f"[{time.strftime('%H:%M:%S')}] Website disconnected after {time.time() - connected_at:.0f}s "
+                f"(code {ws.close_code}, {ws.close_reason or 'no reason given'}; {outbox.qsize()} messages unsent)"
+            )
 
     def _snapshot(self) -> dict:
         return {
@@ -116,12 +137,12 @@ class Bus:
             "history": list(self.history), "tasks": list(self.tasks.values()), "memory": self.memory,
         }
 
-    def _send(self, event: dict):
+    def _send(self, event: dict, visible_only: bool = False):
         if self._loop is None:
             return
         data = json.dumps(event)
         with self._lock:
-            clients = list(self._clients)
+            clients = [q for q, c in self._clients.items() if c["visible"] or not visible_only]
         for outbox in clients:
             self._loop.call_soon_threadsafe(outbox.put_nowait, data)
 
@@ -149,7 +170,7 @@ class Bus:
         now = time.time()
         if self._clients and now - self._last_level > 0.08:
             self._last_level = now
-            self._send({"type": "level", "value": round(min(1.0, rms / 3000), 3)})
+            self._send({"type": "level", "value": round(min(1.0, rms / 3000), 3)}, visible_only=True)
 
     def message(self, role: str, text: str, via: str = ""):
         event = {"type": "message", "role": role, "text": text, "via": via, "time": time.time()}

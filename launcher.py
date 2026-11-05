@@ -17,6 +17,7 @@ import socket
 import subprocess
 import sys
 
+from websockets.asyncio.client import connect
 from websockets.asyncio.server import serve
 
 import config
@@ -30,6 +31,18 @@ def port_open(port: int) -> bool:
     with socket.socket() as s:
         s.settimeout(0.5)
         return s.connect_ex(("127.0.0.1", port)) == 0
+
+
+async def code_works(code: str | None) -> bool:
+    """Is this still the running Jarvis's pairing code? (Not if Jarvis was restarted another way.)"""
+    if not code:
+        return False
+    try:
+        async with connect(f"ws://127.0.0.1:{config.PORT}/ws", origin="http://127.0.0.1", open_timeout=3) as ws:
+            await ws.send(json.dumps({"type": "auth", "token": code}))
+            return json.loads(await asyncio.wait_for(ws.recv(), timeout=3)).get("type") == "snapshot"
+    except Exception:
+        return False
 
 
 def start_jarvis(open_website: bool):
@@ -49,8 +62,8 @@ async def handle(ws):
         if msg.get("type") != "start":
             continue
         if port_open(config.PORT):
-            # Already running. If Jarvis was started by hand, its code isn't known here (token is None).
-            await ws.send(json.dumps({"type": "running", "token": token}))
+            # Already running. If Jarvis was started some other way, its code isn't known here.
+            await ws.send(json.dumps({"type": "running", "token": token if await code_works(token) else None}))
         else:
             start_jarvis(open_website=False)  # the page asking is already open
             await ws.send(json.dumps({"type": "starting", "token": token}))
