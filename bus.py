@@ -12,6 +12,7 @@ pairing code Jarvis makes fresh at every start, so other websites can't control 
 import asyncio
 import json
 import mimetypes
+import os
 import queue
 import re
 import secrets
@@ -32,7 +33,8 @@ COMMANDS = {"say", "listen", "decide"}
 
 class Bus:
     def __init__(self):
-        self.token = secrets.token_urlsafe(12)
+        # The launcher passes the code it gave the website; otherwise make a fresh one.
+        self.token = os.environ.get("JARVIS_TOKEN") or secrets.token_urlsafe(12)
         self.inbox: queue.Queue[dict] = queue.Queue()  # commands from the website
         self.state = "starting"
         self.info: dict = {}

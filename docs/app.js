@@ -4,6 +4,7 @@
 
 const LOCAL = ["localhost", "127.0.0.1"].includes(location.hostname);
 const WS_URL = LOCAL ? `ws://${location.host}/ws` : "ws://127.0.0.1:8765/ws";
+const LAUNCHER_URL = "ws://127.0.0.1:8766";
 const STATE_LABELS = {
   starting: "Starting up", idle: "Standing by", listening: "Listening", thinking: "Thinking",
   speaking: "Speaking", asking: "Waiting for your answer",
@@ -30,6 +31,7 @@ let ws = null;
 let retryTimer = null;
 let everConnected = false;
 let launchTried = false;
+let launcherReply = null;
 let state = "idle";
 let level = 0;
 let tasks = new Map();
@@ -95,6 +97,8 @@ function connect() {
   if (ws && ws.readyState <= WebSocket.OPEN) return; // already connecting or connected: never open two
   pairCode = load("jarvis-pair") || pairCode; // another tab may have received a newer code
   if (!pairCode) {
+    // No code yet: the launcher can start Jarvis (if needed) and tell us the code.
+    if (!launchTried) return startJarvis();
     setStatus("offline", "Not paired");
     showPairing("Connect to Jarvis", "Start Jarvis on your laptop. It opens this page with a pairing code automatically. Or type the code shown in the Jarvis window:");
     return;
@@ -110,13 +114,38 @@ function connect() {
   ws.onclose = () => retry();
 }
 
-// Starts Jarvis on this PC through the jarvis:// link (set up once with setup_website_launch.ps1).
-// Chrome asks the first time; tick "Always allow" so it happens automatically after that.
-function startJarvis() {
+// Asks the Jarvis launcher (started with Windows, port 8766) to start Jarvis if it isn't running.
+// It answers with that run's pairing code. Resolves to null if the launcher isn't reachable.
+function askLauncher() {
+  return new Promise((resolve) => {
+    let launcher;
+    const done = (reply) => { clearTimeout(timer); try { launcher.close(); } catch (e) {} resolve(reply); };
+    const timer = setTimeout(() => done(null), 4000);
+    try {
+      launcher = new WebSocket(LAUNCHER_URL);
+    } catch (e) {
+      return done(null);
+    }
+    launcher.onopen = () => launcher.send(JSON.stringify({ type: "start" }));
+    launcher.onmessage = (e) => done(JSON.parse(e.data));
+    launcher.onerror = () => done(null);
+  });
+}
+
+async function startJarvis() {
   launchTried = true;
-  failures = 0;
   setStatus("", "Starting Jarvis…");
-  location.href = "jarvis://start";
+  const reply = await askLauncher();
+  if (reply && reply.token) {
+    pairCode = reply.token;
+    store("jarvis-pair", reply.token);
+  }
+  launcherReply = reply;
+  failures = 0;
+  if (ws) { ws.onclose = null; ws.close(); ws = null; }
+  if (reply && reply.type === "starting") setStatus("", "Starting Jarvis… (about 20 seconds)");
+  clearTimeout(retryTimer);
+  retryTimer = setTimeout(connect, reply ? 1500 : 0);
 }
 
 function retry() {
@@ -124,16 +153,17 @@ function retry() {
   failures += 1;
   // Opening the site while Jarvis is off starts it, once per visit. Never after Jarvis was
   // connected, so closing Jarvis on purpose doesn't make the page start it again.
-  if (!LOCAL && !everConnected && !launchTried) startJarvis();
-  setStatus("offline", failures > 2 ? (launchTried ? "Jarvis is starting… (or press Start Jarvis)" : "Jarvis is not running") : "Reconnecting…");
-  if (!LOCAL && failures >= 2) {
+  if (!everConnected && !launchTried) return startJarvis();
+  const starting = launcherReply && launcherReply.type === "starting" && failures < 25;
+  setStatus("offline", starting ? "Starting Jarvis…" : failures > 2 ? "Jarvis is not running" : "Reconnecting…");
+  if (!LOCAL && failures >= 2 && !starting) {
     // The browser may be blocking this public page from reaching the PC: offer Jarvis's own copy of the page.
     $("local-link").href = `http://localhost:8765/${pairCode ? "#pair=" + encodeURIComponent(pairCode) : ""}`;
     $("blocked").hidden = false;
   }
   setState("idle");
   clearTimeout(retryTimer);
-  retryTimer = setTimeout(connect, Math.min(10000, 1500 * failures));
+  retryTimer = setTimeout(connect, starting ? 1500 : Math.min(10000, 1500 * failures));
 }
 
 function send(msg) {
@@ -146,6 +176,7 @@ function handle(ev) {
   switch (ev.type) {
     case "auth_failed":
       if (load("jarvis-pair") && load("jarvis-pair") !== pairCode) break; // a newer code arrived; retry uses it
+      if (!launchTried) { ws.onclose = null; startJarvis(); break; } // the launcher may know the current code
       store("jarvis-pair", null);
       pairCode = null;
       ws.onclose = null;
